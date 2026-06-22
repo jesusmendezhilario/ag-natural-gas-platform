@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+  /* Colores AG Natural Gas */
+  --color-primary: #137ea8;
+  --color-primary-dark: #0d5f80;
+  --color-danger: #e6392c;
+  --color-danger-dark: #c42d22;
+
+  /* Fuentes */
+  --font-heading: var(--font-archivo), sans-serif;
+  --font-body: var(--font-manrope), sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: #f9fafb;
+  color: #111827;
+}
