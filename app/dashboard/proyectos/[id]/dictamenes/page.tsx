@@ -1,6 +1,7 @@
 ﻿import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import Link from "next/link"
+import SendEmailButton from "@/app/components/SendEmailButton"
 
 export default async function DictamenesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -8,8 +9,14 @@ export default async function DictamenesPage({ params }: { params: Promise<{ id:
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: proyecto } = await supabase.from("proyectos").select("nombre").eq("id", id).single()
+  const { data: proyecto } = await supabase.from("proyectos").select("nombre, empresas(razon_social)").eq("id", id).single()
   const { data: dictamenes } = await supabase.from("dictamenes_tecnicos").select("*").eq("proyecto_id", id).order("fecha_vencimiento")
+  const { data: profile } = await supabase.from("profiles").select("correo").eq("id", user.id).single()
+  const { data: admins } = await supabase.from("profiles").select("correo").eq("role", "admin")
+
+  const adminEmails = admins?.map((a: any) => a.correo).filter(Boolean) || []
+  const userEmail = profile?.correo || user.email || ""
+  const empresaNombre = (proyecto as any)?.empresas?.razon_social || ""
 
   function diasRestantes(fecha: string) {
     return Math.ceil((new Date(fecha).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
@@ -22,8 +29,13 @@ export default async function DictamenesPage({ params }: { params: Promise<{ id:
           <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
           {proyecto?.nombre}
         </Link>
-        <h1 style={{ fontSize: "28px", fontWeight: 700, color: "#1e293b", fontFamily: "Archivo, sans-serif" }}>Dictamen Tecnico</h1>
-        <p style={{ color: "#64748b", fontSize: "13px", marginTop: "4px" }}>Recibiras un aviso por correo 1 mes antes del vencimiento.</p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <h1 style={{ fontSize: "28px", fontWeight: 700, color: "#1e293b", fontFamily: "Archivo, sans-serif" }}>Dictamen Tecnico</h1>
+            <p style={{ color: "#64748b", fontSize: "13px", marginTop: "4px" }}>Recibiras un aviso por correo 1 mes antes del vencimiento.</p>
+          </div>
+          <SendEmailButton seccion="dictamenes" proyectoNombre={proyecto?.nombre || ""} empresaNombre={empresaNombre} adminEmails={adminEmails} userEmail={userEmail} items={dictamenes || []} />
+        </div>
       </div>
       <div style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", overflow: "hidden" }}>
         {dictamenes && dictamenes.length > 0 ? (

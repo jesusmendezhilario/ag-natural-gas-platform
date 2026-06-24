@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { useState } from "react"
 
 const navItems = [
   { href: "/admin", label: "Inicio", icon: (
@@ -16,7 +17,7 @@ const navItems = [
     </svg>
   )},
   { href: "/admin/proyectos", label: "Proyectos", icon: (
-   <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
       <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
     </svg>
   )},
@@ -25,6 +26,7 @@ const navItems = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   async function handleLogout() {
     const supabase = createClient()
@@ -34,60 +36,118 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const isActive = (href: string) => href === "/admin" ? pathname === "/admin" : pathname.startsWith(href)
 
-  return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc" }}>
-      <aside style={{
-        width: "240px", minHeight: "100vh", background: "#1e293b",
-        display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, zIndex: 50
-      }}>
-        <div style={{ padding: "24px 20px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <img src="/logo.webp" alt="AG Natural Gas" style={{ width: "40px", height: "40px", objectFit: "contain", borderRadius: "8px" }} />
-            <div>
-              <div style={{ fontFamily: "Archivo, sans-serif", fontWeight: 600, color: "white", fontSize: "14px", lineHeight: 1.2 }}>Panel Admin</div>
-              <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>AG Natural Gas</div>
-            </div>
-          </div>
-          <div style={{ marginTop: "12px", display: "inline-flex", alignItems: "center", gap: "5px", padding: "3px 8px", borderRadius: "4px", background: "#e6392c" }}>
-            <span style={{ fontSize: "10px", fontWeight: 600, color: "white", letterSpacing: "0.05em", textTransform: "uppercase" }}>Administrador</span>
+  const sidebarContent = (
+    <>
+      <div style={{ padding: "24px 20px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <img src="/logo.webp" alt="AG Natural Gas" style={{ width: "36px", height: "36px", objectFit: "contain", borderRadius: "8px" }} />
+          <div>
+            <div style={{ fontFamily: "Archivo, sans-serif", fontWeight: 600, color: "white", fontSize: "14px", lineHeight: 1.2 }}>Panel Admin</div>
+            <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>AG Natural Gas</div>
           </div>
         </div>
-
-        <nav style={{ flex: 1, padding: "8px 12px" }}>
-          {navItems.map(item => (
-            <Link key={item.href} href={item.href} style={{
-              display: "flex", alignItems: "center", gap: "10px",
-              padding: "10px 12px", borderRadius: "8px", marginBottom: "2px",
-              color: isActive(item.href) ? "white" : "rgba(255,255,255,0.5)",
-              background: isActive(item.href) ? "rgba(255,255,255,0.1)" : "transparent",
-              textDecoration: "none", fontSize: "14px", fontWeight: isActive(item.href) ? 500 : 400,
-              transition: "all 0.15s"
-            }}>
-              {item.icon}
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-
-        <div style={{ padding: "16px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-          <button onClick={handleLogout} style={{
-            width: "100%", padding: "8px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.12)",
-            background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: "13px",
-            cursor: "pointer", fontFamily: "Manrope, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px"
-          }}>
-            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
-            </svg>
-            Cerrar sesión
-          </button>
+        <div style={{ marginTop: "12px", display: "inline-flex", alignItems: "center", gap: "5px", padding: "3px 8px", borderRadius: "4px", background: "#e6392c" }}>
+          <span style={{ fontSize: "10px", fontWeight: 600, color: "white", letterSpacing: "0.05em", textTransform: "uppercase" }}>Administrador</span>
         </div>
-      </aside>
-
-      <div style={{ marginLeft: "240px", flex: 1, minHeight: "100vh" }}>
-        <main style={{ padding: "40px 48px", maxWidth: "1100px" }}>
-          {children}
-        </main>
       </div>
-    </div>
+
+      <nav style={{ flex: 1, padding: "8px 12px" }}>
+        {navItems.map(item => (
+          <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={{
+            display: "flex", alignItems: "center", gap: "10px",
+            padding: "10px 12px", borderRadius: "8px", marginBottom: "2px",
+            color: isActive(item.href) ? "white" : "rgba(255,255,255,0.5)",
+            background: isActive(item.href) ? "rgba(255,255,255,0.1)" : "transparent",
+            textDecoration: "none", fontSize: "14px", fontWeight: isActive(item.href) ? 500 : 400,
+            transition: "all 0.15s"
+          }}>
+            {item.icon}
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+
+      <div style={{ padding: "16px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+        <button onClick={handleLogout} style={{
+          width: "100%", padding: "8px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.12)",
+          background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: "13px",
+          cursor: "pointer", fontFamily: "Manrope, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px"
+        }}>
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
+          </svg>
+          Cerrar sesion
+        </button>
+      </div>
+    </>
+  )
+
+  return (
+    <>
+      <style>{`
+        @media (max-width: 768px) {
+          .admin-sidebar-desktop { display: none !important; }
+          .admin-main-content { margin-left: 0 !important; }
+          .admin-main-padding { padding: 16px !important; }
+          .admin-topbar { display: flex !important; }
+        }
+        @media (min-width: 769px) {
+          .admin-sidebar-desktop { display: flex !important; }
+          .admin-topbar { display: none !important; }
+        }
+      `}</style>
+
+      {/* Topbar mobile */}
+      <div className="admin-topbar" style={{
+        display: "none", position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
+        background: "#1e293b", padding: "12px 16px", alignItems: "center", justifyContent: "space-between",
+        borderBottom: "1px solid rgba(255,255,255,0.08)"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <img src="/logo.webp" alt="AG" style={{ width: "32px", height: "32px", objectFit: "contain", borderRadius: "6px" }} />
+          <span style={{ fontFamily: "Archivo, sans-serif", fontWeight: 600, color: "white", fontSize: "14px" }}>Panel Admin</span>
+        </div>
+        <button onClick={() => setMenuOpen(!menuOpen)} style={{
+          background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "8px",
+          padding: "8px", cursor: "pointer", color: "white"
+        }}>
+          {menuOpen ? (
+            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          ) : (
+            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          )}
+        </button>
+      </div>
+
+      {/* Mobile menu */}
+      {menuOpen && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 99,
+          background: "rgba(0,0,0,0.5)"
+        }} onClick={() => setMenuOpen(false)}>
+          <div style={{
+            width: "260px", height: "100%", background: "#1e293b",
+            display: "flex", flexDirection: "column", paddingTop: "56px"
+          }} onClick={e => e.stopPropagation()}>
+            {sidebarContent}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc" }}>
+        <aside className="admin-sidebar-desktop" style={{
+          width: "240px", minHeight: "100vh", background: "#1e293b",
+          flexDirection: "column", position: "fixed", top: 0, left: 0, zIndex: 50
+        }}>
+          {sidebarContent}
+        </aside>
+
+        <div className="admin-main-content" style={{ marginLeft: "240px", flex: 1, minHeight: "100vh" }}>
+          <main className="admin-main-padding" style={{ padding: "40px 48px", maxWidth: "1100px" }}>
+            {children}
+          </main>
+        </div>
+      </div>
+    </>
   )
 }
