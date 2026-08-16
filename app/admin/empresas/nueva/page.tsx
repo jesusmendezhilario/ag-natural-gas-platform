@@ -91,10 +91,12 @@ export default function NuevaEmpresaPage() {
     width: "100%",
     padding: "10px 14px",
     borderRadius: "8px",
-    border: "1px solid #e2e8f0",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "#e2e8f0",
     fontSize: "14px",
     color: "#1e293b",
-    background: "white",
+    backgroundColor: "white",
     fontFamily: "Manrope, sans-serif",
   };
   const labelStyle = {
