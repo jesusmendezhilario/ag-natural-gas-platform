@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
@@ -28,11 +28,32 @@ export default function RegistroPage() {
     setLoading(true)
     setError("")
     const supabase = createClient()
-    const { data: authData, error: authError } = await supabase.auth.signUp({ email: correo, password, options: { data: { nombre, puesto } } })
-    if (authError || !authData.user) { setError(authError?.message || "Error al crear la cuenta"); setLoading(false); return }
-    const { data: empresaData, error: empresaError } = await supabase.from("empresas").insert({ razon_social: razonSocial, rfc, registro_patronal: registroPatronal, direccion, telefono: telefonoEmpresa }).select().single()
-    if (empresaError || !empresaData) { setError("Error: " + empresaError?.message); setLoading(false); return }
-    await supabase.from("profiles").update({ nombre, puesto, correo, telefono, empresa_id: empresaData.id }).eq("id", authData.user.id)
+    //Este bloque se refactorizo ya que el trigger de la bd es quien hace el gurdado y vinculacion entre usuario y empresa.
+   const { data: authData, error: authError } = await supabase.auth.signUp({ 
+        email: correo, 
+        password: password, 
+        options: { 
+          data: { 
+            // Datos para Profiles
+            nombre: nombre, 
+            puesto: puesto,
+            telefono_usuario: telefono,
+            // Datos para Empresas
+            razon_social: razonSocial,
+            rfc: rfc,
+            registro_patronal: registroPatronal,
+            direccion: direccion,
+            telefono_empresa: telefonoEmpresa 
+          } 
+        } 
+      })
+    let user = authData?.user
+   
+    if (authError || !user) { 
+      setError(authError?.message || "Error al crear la cuenta"); 
+      setLoading(false); 
+      return 
+    }
     router.push("/dashboard")
   }
 
