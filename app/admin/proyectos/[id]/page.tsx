@@ -16,7 +16,7 @@ export default function ProyectoAdminPage() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [form, setForm] = useState<any>({})
-  const [error, setError] = useState("")
+  const [erroresPorSeccion, setErroresPorSeccion] = useState<Record<string, string>>({})
 
   const secciones = [
     { key: "facturas", label: "Facturas" },
@@ -45,6 +45,12 @@ export default function ProyectoAdminPage() {
     setSeccion(s)
     setForm({})
     setLoading(false)
+  }
+
+  const error = erroresPorSeccion[seccion] || ""
+
+  function setError(mensaje: string, targetSeccion = seccion) {
+    setErroresPorSeccion(prev => ({ ...prev, [targetSeccion]: mensaje }))
   }
 
   async function subirArchivo(file: File, carpeta: string) {

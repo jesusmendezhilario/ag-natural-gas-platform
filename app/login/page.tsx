@@ -57,7 +57,7 @@ export default function LoginPage() {
         <div className="login-right" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "48px 32px" }}>
           <div style={{ width: "100%", maxWidth: "380px" }}>
             <h2 style={{ fontFamily: "Archivo, sans-serif", fontWeight: 700, fontSize: "24px", color: "#1e293b", marginBottom: "8px" }}>
-              Inicia sesion
+              Inicia sesión
             </h2>
             <p style={{ color: "#64748b", fontSize: "14px", marginBottom: "32px" }}>
               No tienes cuenta?{" "}

@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { useState } from "react"
-
+import Footer from "@/app/components/footer/footer"
 const navItems = [
   { href: "/admin", label: "Inicio", icon: (
     <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -84,10 +84,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         .adm-sidebar { display: flex; }
         .adm-topbar { display: none; }
         .adm-main { margin-left: 240px; padding: 40px 48px; }
+        .adm-footer { margin-left: 240px; width: calc(100% - 240px); }
         @media (max-width: 768px) {
           .adm-sidebar { display: none; }
           .adm-topbar { display: flex; }
           .adm-main { margin-left: 0; padding: 72px 16px 24px; }
+          .adm-footer { margin-left: 0; width: 100%; }
         }
       `}</style>
 
@@ -131,10 +133,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }}>
           {navContent}
         </aside>
-        <div style={{ flex: 1 }}>
-          <main className="adm-main" style={{ maxWidth: "1100px" }}>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+          <main className="adm-main" style={{ maxWidth: "1100px", flex: 1 }}>
             {children}
           </main>
+          <Footer className="adm-footer" />
         </div>
       </div>
     </>

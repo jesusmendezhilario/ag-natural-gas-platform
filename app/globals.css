@@ -83,3 +83,39 @@ input:focus, textarea:focus, select:focus {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* Esto es para el footer*/
+
+ .site-footer {
+  margin-top: auto;
+  background: linear-gradient(135deg, #0d5f80 0%, #12344d 58%, #1e293b 100%);
+  color: white;
+  border-top: 4px solid #e6392c;
+  box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.08);
+}
+
+.site-footer__inner {
+  width: min(100%, 350px);
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.site-footer__title {
+  font-size: 13px;
+  margin: 0;
+}
+@media (max-width: 768px) {
+  .site-footer__inner {
+    padding: 12px 16px;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .site-footer__title {
+    white-space: normal;
+  }
+}
