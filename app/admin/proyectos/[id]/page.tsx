@@ -16,6 +16,7 @@ export default function ProyectoAdminPage() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [form, setForm] = useState<any>({})
+  const [erroresPorSeccion, setErroresPorSeccion] = useState<Record<string, string>>({})
 
   const secciones = [
     { key: "facturas", label: "Facturas" },
@@ -46,6 +47,12 @@ export default function ProyectoAdminPage() {
     setLoading(false)
   }
 
+  const error = erroresPorSeccion[seccion] || ""
+
+  function setError(mensaje: string, targetSeccion = seccion) {
+    setErroresPorSeccion(prev => ({ ...prev, [targetSeccion]: mensaje }))
+  }
+
   async function subirArchivo(file: File, carpeta: string) {
     const nombre = Date.now() + "_" + file.name
     const ruta = carpeta + "/" + proyectoId + "/" + nombre
@@ -53,14 +60,121 @@ export default function ProyectoAdminPage() {
     const { data: url } = supabase.storage.from("proyectos-archivos").getPublicUrl(ruta)
     return url.publicUrl
   }
-
+  // Letras, números, espacios, guion, guion bajo, diagonal y punto
+  const regexFolio = /^[a-zA-Z0-9\-_/. ]+$/;
+ 
   async function guardar() {
     setUploading(true)
+    setError("")
     const tabla = seccion === "dictamenes" ? "dictamenes_tecnicos" : seccion
+    const regexMonto = /^\d+(\.\d{1,2})?$/; // solo dígitos, opcionalmente con hasta 2 decimales
+    if ((seccion === "facturas" || seccion === "presupuestos") && (!form.folio || form.folio.trim() === "")) {
+      setError("El folio es obligatorio.")
+      setUploading(false)
+      return
+    }
+
     let archivo_url = null
     if (form.archivo) archivo_url = await subirArchivo(form.archivo, seccion)
-
     const datos: any = { proyecto_id: proyectoId }
+    if (seccion === "facturas" || seccion === "presupuestos") {
+      const folioLimpio = (form.folio || "").trim();
+      if (folioLimpio && !regexFolio.test(folioLimpio)) {
+        setError("El folio contiene caracteres no permitidos. Usa solo letras, números, espacios, - _ / .");
+        setUploading(false);
+        return;
+      }
+      if (folioLimpio) {
+        const { data: existeFolio, error: errorBusqueda } = await supabase
+          .from(tabla)
+          .select("id")
+          .eq("proyecto_id", proyectoId)
+          .eq("folio", folioLimpio);
+
+        if (errorBusqueda) {
+          setError("Error al validar folio: " + errorBusqueda.message);
+          setUploading(false);
+          return;
+        }
+
+        if (existeFolio && existeFolio.length > 0) {
+          const tipoRegistro = seccion === "facturas" ? "factura" : "presupuesto";
+          setError(`Ya existe un(a) ${tipoRegistro} con este folio en este proyecto.`);
+          setUploading(false);
+          return;
+        }
+      }
+      if(!form.fecha || form.fecha.trim() === ""){
+         setError("La fecha de registro es obligatoria.");
+         setUploading(false);
+         return;
+      }
+      if(!regexMonto.test(form.monto) || form.monto.trim() === ""){
+         setError("El monto es obligatorio y debe ser un número válido (ej. 1500.50).");
+         setUploading(false);
+         return;
+      }
+      if(!form.archivo){
+         const tipoRegistro = seccion === "facturas" ? "factura" : "presupuesto";
+        setError(`Debes adjuntar el archivo de ${tipoRegistro}.`);
+        setUploading(false);
+        return;
+      }
+     
+    }
+    else if (seccion === "dictamenes") {
+      if (!form.descripcion || form.descripcion.trim() === "") {
+        setError("La descripción es obligatoria.");
+          setUploading(false);
+        return;
+      }
+      if (!form.fecha_vencimiento) {
+        setError("La fecha de vencimiento es obligatoria.");
+          setUploading(false);
+        return;
+      }
+      if (!form.archivo) {
+        setError("Debes adjuntar el archivo del dictamen.");
+          setUploading(false);
+        return;
+      }
+    }
+    else if (seccion==="estimaciones"){
+      if(!regexMonto.test(form.numero) || form.numero.trim() === "" ){
+        setError("Debe ser un Número válido (ej. 1500.50).");
+         setUploading(false);
+         return;
+      }
+       if(!regexMonto.test(form.monto) || form.monto.trim() === ""){
+        setError("El monto debe de ser un numero válido (ej. 1500.50).");
+        setUploading(false);
+        return;
+      }
+      if(!form.archivo){
+        setError(`Debes adjuntar el documento`);
+        setUploading(false);
+        return;
+      }
+    }
+    else if (seccion==="fotografias"){
+       if (!form.titulo || form.titulo.trim() === "") {
+        setError("El título de la fotografía es obligatorio.");
+         setUploading(false);
+        return;
+      }
+      if (!form.archivo) {
+        setError(`Selecciona una fotografía antes de subir.`);
+         setUploading(false);
+        return;
+      }
+    }
+    else if(seccion === "comentarios"){
+      if(!form.contenido || form.contenido.trim()===""){
+         setError(`Debe de ingresar un comentario valido.`);
+         setUploading(false);
+        return;
+      }
+    }
     if (seccion === "facturas") { datos.folio = form.folio || null; datos.fecha_emision = form.fecha || null; datos.monto = form.monto || null; datos.notas = form.notas || null; datos.archivo_url = archivo_url }
     else if (seccion === "presupuestos") { datos.folio = form.folio || null; datos.fecha = form.fecha || null; datos.monto_total = form.monto || null; datos.notas = form.notas || null; datos.archivo_url = archivo_url }
     else if (seccion === "dictamenes") { datos.descripcion = form.descripcion || null; datos.fecha_emision = form.fecha_emision || null; datos.fecha_vencimiento = form.fecha_vencimiento; datos.notas = form.notas || null; datos.archivo_url = archivo_url }
@@ -115,13 +229,23 @@ export default function ProyectoAdminPage() {
             Agregar {secciones.find(s => s.key === seccion)?.label}
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {(seccion === "facturas" || seccion === "presupuestos") && (<>
-              <input placeholder="Folio" value={form.folio || ""} onChange={e => setForm({...form, folio: e.target.value})} style={inputStyle} />
-              <input type="date" value={form.fecha || ""} onChange={e => setForm({...form, fecha: e.target.value})} style={inputStyle} />
-              <input type="number" placeholder="Monto" value={form.monto || ""} onChange={e => setForm({...form, monto: e.target.value})} style={inputStyle} />
-              <input placeholder="Notas" value={form.notas || ""} onChange={e => setForm({...form, notas: e.target.value})} style={inputStyle} />
-              <input type="file" onChange={e => setForm({...form, archivo: e.target.files?.[0]})} style={{ fontSize: "12px", color: "#64748b" }} />
-            </>)}
+            {
+                (seccion === "facturas" || seccion === "presupuestos") && (
+                  <>
+                    <input placeholder="Folios" value={form.folio || ""} onChange={e => setForm({...form, folio: e.target.value})} style={inputStyle} />
+                    <input type="date" value={form.fecha || ""} onChange={e => setForm({...form, fecha: e.target.value})} style={inputStyle} />
+                    <input type="number" placeholder="Monto" value={form.monto || ""} onChange={e => setForm({...form, monto: e.target.value})} style={inputStyle} />
+                    <input placeholder="Notas" value={form.notas || ""} onChange={e => setForm({...form, notas: e.target.value})} style={inputStyle} />
+                    <input type="file" onChange={e => setForm({...form, archivo: e.target.files?.[0]})} style={{ fontSize: "12px", color: "#64748b" }} />
+
+                    {error && (
+                      <div style={{ margin: "10px", padding: "13px 14px", borderRadius: "8px", background: "#fef2f2", border: "1px solid #fecaca" }}>
+                        <p style={{ fontSize: "13px", color: "#c42d22" }}>{error}</p>
+                      </div>
+                    )}
+                  </>
+                )
+              }
             {seccion === "dictamenes" && (<>
               <input placeholder="Descripción" value={form.descripcion || ""} onChange={e => setForm({...form, descripcion: e.target.value})} style={inputStyle} />
               <label style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fecha emisión</label>
@@ -130,6 +254,11 @@ export default function ProyectoAdminPage() {
               <input type="date" value={form.fecha_vencimiento || ""} onChange={e => setForm({...form, fecha_vencimiento: e.target.value})} style={inputStyle} />
               <input placeholder="Notas" value={form.notas || ""} onChange={e => setForm({...form, notas: e.target.value})} style={inputStyle} />
               <input type="file" onChange={e => setForm({...form, archivo: e.target.files?.[0]})} style={{ fontSize: "12px", color: "#64748b" }} />
+                {error && (
+                    <div style={{ margin: "10px", padding: "13px 14px", borderRadius: "8px", background: "#fef2f2", border: "1px solid #fecaca" }}>
+                      <p style={{ fontSize: "13px", color: "#c42d22" }}>{error}</p>
+                    </div>
+                  )}
             </>)}
             {seccion === "estimaciones" && (<>
               <input type="number" placeholder="Número" value={form.numero || ""} onChange={e => setForm({...form, numero: e.target.value})} style={inputStyle} />
@@ -137,14 +266,32 @@ export default function ProyectoAdminPage() {
               <input placeholder="Concepto" value={form.concepto || ""} onChange={e => setForm({...form, concepto: e.target.value})} style={inputStyle} />
               <input type="number" placeholder="Monto" value={form.monto || ""} onChange={e => setForm({...form, monto: e.target.value})} style={inputStyle} />
               <input type="file" onChange={e => setForm({...form, archivo: e.target.files?.[0]})} style={{ fontSize: "12px", color: "#64748b" }} />
+               {error && (
+                      <div style={{ margin: "10px", padding: "13px 14px", borderRadius: "8px", background: "#fef2f2", border: "1px solid #fecaca" }}>
+                        <p style={{ fontSize: "13px", color: "#c42d22" }}>{error}</p>
+                      </div>
+                    )}
             </>)}
             {seccion === "fotografias" && (<>
               <input placeholder="Título" value={form.titulo || ""} onChange={e => setForm({...form, titulo: e.target.value})} style={inputStyle} />
               <input placeholder="Descripción" value={form.descripcion || ""} onChange={e => setForm({...form, descripcion: e.target.value})} style={inputStyle} />
               <input type="file" accept="image/*" onChange={e => setForm({...form, archivo: e.target.files?.[0]})} style={{ fontSize: "12px", color: "#64748b" }} />
+               {error && (
+                      <div style={{ margin: "10px", padding: "13px 14px", borderRadius: "8px", background: "#fef2f2", border: "1px solid #fecaca" }}>
+                        <p style={{ fontSize: "13px", color: "#c42d22" }}>{error}</p>
+                      </div>
+                    )}
             </>)}
             {seccion === "comentarios" && (
+              <>
               <textarea placeholder="Escribe un comentario..." value={form.contenido || ""} onChange={e => setForm({...form, contenido: e.target.value})} rows={4} style={{...inputStyle, resize: "vertical"}} />
+                  {error && (
+                      <div style={{ margin: "10px", padding: "13px 14px", borderRadius: "8px", background: "#fef2f2", border: "1px solid #fecaca" }}>
+                        <p style={{ fontSize: "13px", color: "#c42d22" }}>{error}</p>
+                      </div>
+                    )}
+              </>
+              
             )}
             <button onClick={guardar} disabled={uploading} style={{
               width: "100%", padding: "10px", borderRadius: "8px", border: "none",
@@ -155,8 +302,9 @@ export default function ProyectoAdminPage() {
               {uploading ? "Guardando..." : "Agregar"}
             </button>
           </div>
+          
         </div>
-
+            
         <div style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", overflow: "hidden" }}>
           <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", background: "#f8fafc" }}>
             <h2 style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b", fontFamily: "Archivo, sans-serif" }}>

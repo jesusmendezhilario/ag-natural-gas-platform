@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
@@ -21,18 +21,65 @@ export default function RegistroPage() {
   const [telefono, setTelefono] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [erroresCampos, setErroresCampos] = useState({
+    razonSocial: false,
+    rfc: false,
+    registroPatronal: false,
+    telefonoEmpresa: false,
+    nombre: false,
+    correo: false,
+    telefono: false,
+  })
 
   async function handleRegistro() {
+    const correoLimpio = correo.trim()
+    const nuevosErrores = {
+      razonSocial: !razonSocial.trim(),
+      rfc: !/^[A-Z&Ñ]{3,4}\d{6}[A-Z0-9]{3}$/.test(rfc.trim()),
+      registroPatronal: registroPatronal !== "" && registroPatronal.length !== 11,
+      telefonoEmpresa: telefonoEmpresa !== "" && !/^\+?\d{8,15}$/.test(telefonoEmpresa),
+      nombre: !nombre.trim(),
+      correo: !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio),
+      telefono: telefono !== "" && !/^\+?\d{8,15}$/.test(telefono),
+    }
+
+    if (Object.values(nuevosErrores).some(Boolean)) {
+      setErroresCampos(nuevosErrores)
+      setError("")
+      return
+    }
+
     if (password !== confirmPassword) { setError("Las contraseñas no coinciden"); return }
     if (password.length < 6) { setError("La contraseña debe tener al menos 6 caracteres"); return }
     setLoading(true)
     setError("")
     const supabase = createClient()
-    const { data: authData, error: authError } = await supabase.auth.signUp({ email: correo, password, options: { data: { nombre, puesto } } })
-    if (authError || !authData.user) { setError(authError?.message || "Error al crear la cuenta"); setLoading(false); return }
-    const { data: empresaData, error: empresaError } = await supabase.from("empresas").insert({ razon_social: razonSocial, rfc, registro_patronal: registroPatronal, direccion, telefono: telefonoEmpresa }).select().single()
-    if (empresaError || !empresaData) { setError("Error: " + empresaError?.message); setLoading(false); return }
-    await supabase.from("profiles").update({ nombre, puesto, correo, telefono, empresa_id: empresaData.id }).eq("id", authData.user.id)
+    //Este bloque se refactorizo ya que el trigger de la bd es quien hace el gurdado y vinculacion entre usuario y empresa.
+   const { data: authData, error: authError } = await supabase.auth.signUp({ 
+        email: correoLimpio, 
+        password: password, 
+        options: { 
+          data: { 
+            // Datos para Profiles
+            nombre: nombre.trim(), 
+            puesto: puesto,
+            telefono_usuario: telefono,
+            // Datos para Empresas
+            razon_social: razonSocial,
+            rfc: rfc,
+            registro_patronal: registroPatronal,
+            direccion: direccion,
+            telefono_empresa: telefonoEmpresa 
+          } 
+        } 
+      })
+    const user = authData?.user
+   
+    if (authError || !user) { 
+      setError(authError?.message || "Error al crear la cuenta"); 
+      setLoading(false); 
+      return 
+    }
     router.push("/dashboard")
   }
 
@@ -43,6 +90,32 @@ export default function RegistroPage() {
   }
 
   const labelStyle = { display: "block", fontSize: "13px", fontWeight: 500, color: "#374151", marginBottom: "6px" } as React.CSSProperties
+  const errorTextStyle = { fontSize: "12px", color: "#e6392c", marginTop: "4px", display: "block" }
+
+  function limpiarTelefono(valor: string) {
+    const tienePlus = valor.startsWith("+")
+    const soloNumeros = valor.replace(/\D/g, "")
+    return tienePlus ? `+${soloNumeros}` : soloNumeros
+  }
+
+  function validarPasoEmpresa() {
+    const nuevosErrores = {
+      ...erroresCampos,
+      razonSocial: !razonSocial.trim(),
+      rfc: !/^[A-Z&Ñ]{3,4}\d{6}[A-Z0-9]{3}$/.test(rfc.trim()),
+      registroPatronal: registroPatronal !== "" && registroPatronal.length !== 11,
+      telefonoEmpresa: telefonoEmpresa !== "" && !/^\+?\d{8,15}$/.test(telefonoEmpresa),
+    }
+
+    setErroresCampos(nuevosErrores)
+    if (nuevosErrores.razonSocial) { setError("La razón social es obligatoria"); return false }
+    if (nuevosErrores.rfc) { setError("El RFC no es válido o está incompleto"); return false }
+    if (nuevosErrores.registroPatronal) { setError("El registro patronal debe contener exactamente 11 caracteres"); return false }
+    if (nuevosErrores.telefonoEmpresa) { setError("El teléfono de empresa debe tener entre 8 y 15 dígitos"); return false }
+
+    setError("")
+    return true
+  }
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", background: "#f8fafc" }}>
@@ -98,16 +171,60 @@ export default function RegistroPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               <div>
                 <label style={labelStyle}>Razón social *</label>
-                <input type="text" value={razonSocial} onChange={e => setRazonSocial(e.target.value)} placeholder="Empresa S.A. de C.V." style={inputStyle} />
+                <input
+                  type="text"
+                  value={razonSocial}
+                  onChange={e => {
+                    const val = e.target.value
+                    setRazonSocial(val)
+                    if (erroresCampos.razonSocial && val.trim() !== "") {
+                      setErroresCampos(prev => ({ ...prev, razonSocial: false }))
+                    }
+                  }}
+                  onBlur={() => setErroresCampos(prev => ({ ...prev, razonSocial: !razonSocial.trim() }))}
+                  placeholder="Empresa S.A. de C.V."
+                  style={{ ...inputStyle, borderColor: erroresCampos.razonSocial ? "#e6392c" : "#e2e8f0", background: erroresCampos.razonSocial ? "#fef2f2" : "white" }}
+                />
+                {erroresCampos.razonSocial && <span style={errorTextStyle}>La razón social es obligatoria</span>}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div>
-                  <label style={labelStyle}>RFC</label>
-                  <input type="text" value={rfc} onChange={e => setRfc(e.target.value)} placeholder="ABC123456XYZ" style={inputStyle} />
+                  <label style={labelStyle}>RFC *</label>
+                  <input
+                    type="text"
+                    value={rfc}
+                    onChange={e => {
+                      const limpio = e.target.value.toUpperCase().replace(/[^A-Z0-9&Ñ]/g, "")
+                      setRfc(limpio)
+                      if (erroresCampos.rfc && /^[A-Z&Ñ]{3,4}\d{6}[A-Z0-9]{3}$/.test(limpio)) {
+                        setErroresCampos(prev => ({ ...prev, rfc: false }))
+                      }
+                    }}
+                    onBlur={() => setErroresCampos(prev => ({ ...prev, rfc: !/^[A-Z&Ñ]{3,4}\d{6}[A-Z0-9]{3}$/.test(rfc.trim()) }))}
+                    placeholder="ABC123456XYZ"
+                    maxLength={13}
+                    style={{ ...inputStyle, borderColor: erroresCampos.rfc ? "#e6392c" : "#e2e8f0", background: erroresCampos.rfc ? "#fef2f2" : "white" }}
+                  />
+                  {erroresCampos.rfc && <span style={errorTextStyle}>RFC no válido o incompleto</span>}
                 </div>
                 <div>
                   <label style={labelStyle}>Registro patronal</label>
-                  <input type="text" value={registroPatronal} onChange={e => setRegistroPatronal(e.target.value)} placeholder="Y12-34-56" style={inputStyle} />
+                  <input
+                    type="text"
+                    value={registroPatronal}
+                    onChange={e => {
+                      const limpio = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")
+                      setRegistroPatronal(limpio)
+                      if (erroresCampos.registroPatronal && (limpio.length === 11 || limpio === "")) {
+                        setErroresCampos(prev => ({ ...prev, registroPatronal: false }))
+                      }
+                    }}
+                    onBlur={() => setErroresCampos(prev => ({ ...prev, registroPatronal: registroPatronal !== "" && registroPatronal.length !== 11 }))}
+                    placeholder="Y1234567890"
+                    maxLength={11}
+                    style={{ ...inputStyle, borderColor: erroresCampos.registroPatronal ? "#e6392c" : "#e2e8f0", background: erroresCampos.registroPatronal ? "#fef2f2" : "white" }}
+                  />
+                  {erroresCampos.registroPatronal && <span style={errorTextStyle}>Debe contener exactamente 11 caracteres</span>}
                 </div>
               </div>
               <div>
@@ -116,10 +233,26 @@ export default function RegistroPage() {
               </div>
               <div>
                 <label style={labelStyle}>Teléfono</label>
-                <input type="tel" value={telefonoEmpresa} onChange={e => setTelefonoEmpresa(e.target.value)} placeholder="+52 442 000 0000" style={inputStyle} />
+                <input
+                  type="tel"
+                  value={telefonoEmpresa}
+                  onChange={e => {
+                    const limpio = limpiarTelefono(e.target.value)
+                    setTelefonoEmpresa(limpio)
+                    if (erroresCampos.telefonoEmpresa && (!limpio || /^\+?\d{8,15}$/.test(limpio))) {
+                      setErroresCampos(prev => ({ ...prev, telefonoEmpresa: false }))
+                    }
+                  }}
+                  onBlur={() => setErroresCampos(prev => ({ ...prev, telefonoEmpresa: telefonoEmpresa !== "" && !/^\+?\d{8,15}$/.test(telefonoEmpresa) }))}
+                  placeholder="+524421234567"
+                  inputMode="tel"
+                  maxLength={16}
+                  style={{ ...inputStyle, borderColor: erroresCampos.telefonoEmpresa ? "#e6392c" : "#e2e8f0", background: erroresCampos.telefonoEmpresa ? "#fef2f2" : "white" }}
+                />
+                {erroresCampos.telefonoEmpresa && <span style={errorTextStyle}>Teléfono no válido (entre 8 y 15 dígitos)</span>}
               </div>
               {error && <p style={{ fontSize: "13px", color: "#c42d22" }}>{error}</p>}
-              <button onClick={() => { if (!razonSocial) { setError("La razón social es obligatoria"); return } setError(""); setPaso(2) }}
+              <button onClick={() => { if (validarPasoEmpresa()) setPaso(2) }}
                 style={{ width: "100%", padding: "11px", borderRadius: "8px", border: "none", background: "#137ea8", color: "white", fontSize: "14px", fontWeight: 600, cursor: "pointer", fontFamily: "Manrope, sans-serif", marginTop: "4px" }}>
                 Continuar →
               </button>
@@ -131,7 +264,21 @@ export default function RegistroPage() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div>
                   <label style={labelStyle}>Nombre *</label>
-                  <input type="text" value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Juan Pérez" style={inputStyle} />
+                  <input
+                    type="text"
+                    value={nombre}
+                    onChange={e => {
+                      const val = e.target.value
+                      setNombre(val)
+                      if (erroresCampos.nombre && val.trim() !== "") {
+                        setErroresCampos(prev => ({ ...prev, nombre: false }))
+                      }
+                    }}
+                    onBlur={() => setErroresCampos(prev => ({ ...prev, nombre: !nombre.trim() }))}
+                    placeholder="Juan Pérez"
+                    style={{ ...inputStyle, borderColor: erroresCampos.nombre ? "#e6392c" : "#e2e8f0", background: erroresCampos.nombre ? "#fef2f2" : "white" }}
+                  />
+                  {erroresCampos.nombre && <span style={errorTextStyle}>El nombre es obligatorio</span>}
                 </div>
                 <div>
                   <label style={labelStyle}>Puesto</label>
@@ -140,11 +287,41 @@ export default function RegistroPage() {
               </div>
               <div>
                 <label style={labelStyle}>Correo electrónico *</label>
-                <input type="email" value={correo} onChange={e => setCorreo(e.target.value)} placeholder="juan@empresa.com" style={inputStyle} />
+                <input
+                  type="email"
+                  value={correo}
+                  onChange={e => {
+                    const val = e.target.value.trim()
+                    setCorreo(val)
+                    if (erroresCampos.correo && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+                      setErroresCampos(prev => ({ ...prev, correo: false }))
+                    }
+                  }}
+                  onBlur={() => setErroresCampos(prev => ({ ...prev, correo: !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo.trim()) }))}
+                  placeholder="juan@empresa.com"
+                  style={{ ...inputStyle, borderColor: erroresCampos.correo ? "#e6392c" : "#e2e8f0", background: erroresCampos.correo ? "#fef2f2" : "white" }}
+                />
+                {erroresCampos.correo && <span style={errorTextStyle}>Correo electrónico no válido</span>}
               </div>
               <div>
                 <label style={labelStyle}>Teléfono</label>
-                <input type="tel" value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="+52 442 000 0000" style={inputStyle} />
+                <input
+                  type="tel"
+                  value={telefono}
+                  onChange={e => {
+                    const limpio = limpiarTelefono(e.target.value)
+                    setTelefono(limpio)
+                    if (erroresCampos.telefono && (!limpio || /^\+?\d{8,15}$/.test(limpio))) {
+                      setErroresCampos(prev => ({ ...prev, telefono: false }))
+                    }
+                  }}
+                  onBlur={() => setErroresCampos(prev => ({ ...prev, telefono: telefono !== "" && !/^\+?\d{8,15}$/.test(telefono) }))}
+                  placeholder="+524421234567"
+                  inputMode="tel"
+                  maxLength={16}
+                  style={{ ...inputStyle, borderColor: erroresCampos.telefono ? "#e6392c" : "#e2e8f0", background: erroresCampos.telefono ? "#fef2f2" : "white" }}
+                />
+                {erroresCampos.telefono && <span style={errorTextStyle}>Teléfono no válido (entre 8 y 15 dígitos)</span>}
               </div>
               <div>
                 <label style={labelStyle}>Contraseña *</label>

@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
+import Footer from "@/app/components/footer/footer"
 
 const navItems = [
   { href: "/dashboard", label: "Inicio", icon: (
@@ -23,6 +24,11 @@ const navItems = [
   )},
 ]
 
+type ProfileWithEmpresa = {
+  nombre: string | null
+  empresas: { razon_social: string | null } | null
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -35,14 +41,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push("/login"); return }
-      const { data: p } = await supabase.from("profiles").select("nombre, empresas(razon_social)").eq("id", user.id).single()
+      const { data: p } = await supabase.from("profiles").select("nombre, empresas(razon_social)").eq("id", user.id).single<ProfileWithEmpresa>()
       if (p) {
         setNombre(p.nombre || "Usuario")
-        setEmpresa((p as any).empresas?.razon_social || "")
+        setEmpresa(p.empresas?.razon_social || "")
       }
     }
     cargar()
-  }, [])
+  }, [router])
 
   async function handleLogout() {
     const supabase = createClient()
@@ -107,10 +113,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .db-sidebar { display: flex; }
         .db-topbar { display: none; }
         .db-main { margin-left: 240px; padding: 40px 48px; }
+        .db-footer { margin-left: 240px; width: calc(100% - 240px); }
         @media (max-width: 768px) {
           .db-sidebar { display: none; }
           .db-topbar { display: flex; }
           .db-main { margin-left: 0; padding: 72px 16px 24px; }
+          .db-footer { margin-left: 0; width: 100%; }
         }
       `}</style>
 
@@ -156,10 +164,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }}>
           {navContent}
         </aside>
-        <div style={{ flex: 1 }}>
-          <main className="db-main" style={{ maxWidth: "1100px" }}>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+          <main className="db-main" style={{ maxWidth: "1100px", flex: 1 }}>
             {children}
           </main>
+          <Footer className="db-footer" />
         </div>
       </div>
     </>
